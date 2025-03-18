@@ -1,0 +1,197 @@
+"use client";
+import React, { useState } from "react";
+
+export default function RecipeFinder() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [recipes, setRecipes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const API_URL = "https://fastmealapi-2.onrender.com/meals";
+  const UNSPLASH_API_KEY = "7omHTJvkc6nvSpl6MFdpLMI2WtfEECfT5f5nwoPDwaY";
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      alert("Please enter a dish name");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setRecipes([]);
+
+    try {
+      const response = await fetch(
+        `${API_URL}/${encodeURIComponent(searchQuery)}`
+      );
+      if (!response.ok)
+        throw new Error(`API responded with status ${response.status}`);
+
+      const data = await response.json();
+      const normalizedData = data?.data
+        ? Array.isArray(data.data)
+          ? data.data
+          : [data.data]
+        : [];
+
+      setRecipes(normalizedData);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="container mx-auto p-6">
+      <div className="flex justify-center gap-4 mb-10">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search for recipes..."
+          className="w-2/3 px-4 py-3 border border-orange-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+        />
+        <button
+          onClick={handleSearch}
+          className="px-6 py-3 bg-[#B43F3F] text-white rounded-lg hover:bg-[#ba6e6e] transition-all"
+        >
+          Search
+        </button>
+      </div>
+
+      <div className="w-full flex justify-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-6xl">
+          {loading && (
+            <p className="text-center text-gray-600">
+              Searching for recipes...
+            </p>
+          )}
+          {error && <div className="text-red-500 text-center">{error}</div>}
+          {recipes.length === 0 && !loading && !error && (
+            <p className="text-center text-gray-500">No recipes found.</p>
+          )}
+
+          {recipes.map((recipe, index) => (
+            <RecipeCard
+              key={index}
+              recipe={recipe}
+              unsplashApiKey={UNSPLASH_API_KEY}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const RecipeCard = ({ recipe, unsplashApiKey }) => {
+  const { strMeal, strMealThumb, strInstructions } = recipe;
+
+  const [imageUrl, setImageUrl] = useState(strMealThumb);
+  const [loadingImage, setLoadingImage] = useState(!strMealThumb);
+  const [activeTab, setActiveTab] = useState(null); // Track which tab is active
+
+  const fetchImage = async () => {
+    try {
+      const response = await fetch(
+        `https://api.unsplash.com/photos/random?query=${encodeURIComponent(
+          strMeal
+        )}&client_id=${unsplashApiKey}`
+      );
+      const data = await response.json();
+      setImageUrl(
+        data?.urls?.regular ||
+          "https://via.placeholder.com/400x300?text=No+Image"
+      );
+    } catch (error) {
+      console.error("Error fetching Unsplash image:", error);
+      setImageUrl("https://via.placeholder.com/400x300?text=No+Image");
+    } finally {
+      setLoadingImage(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (!strMealThumb) {
+      fetchImage();
+    }
+  }, [strMealThumb]);
+
+  // Extract ingredients dynamically
+  const getIngredients = () => {
+    let ingredients = [];
+    for (let i = 1; i <= 20; i++) {
+      const ingredient = recipe[`strIngredient${i}`];
+      const measure = recipe[`strMeasure${i}`];
+      if (ingredient && ingredient.trim()) {
+        ingredients.push(`${measure ? measure + " " : ""}${ingredient}`);
+      }
+    }
+    return ingredients;
+  };
+
+  return (
+    <div className="bg-white shadow-lg rounded-lg overflow-hidden w-full max-w-sm transform transition duration-300 hover:scale-105">
+      {loadingImage ? (
+        <div className="w-full h-48 bg-gray-300 animate-pulse"></div>
+      ) : (
+        <img
+          src={imageUrl}
+          alt={strMeal}
+          className="w-full h-48 object-cover"
+        />
+      )}
+
+      <div className="p-4">
+        <h2 className="text-xl font-semibold text-gray-800">{strMeal}</h2>
+
+        <div className="flex gap-3 mt-4">
+          <button
+            className={`px-4 py-2 rounded-lg transition-all ${
+              activeTab === "ingredients"
+                ? "bg-orange-600 text-white"
+                : "bg-orange-400 text-white hover:bg-orange-500"
+            }`}
+            onClick={() =>
+              setActiveTab(activeTab === "ingredients" ? null : "ingredients")
+            }
+          >
+            View Ingredients
+          </button>
+
+          <button
+            className={`px-4 py-2 rounded-lg transition-all ${
+              activeTab === "instructions"
+                ? "bg-orange-600 text-white"
+                : "bg-orange-400 text-white hover:bg-orange-500"
+            }`}
+            onClick={() =>
+              setActiveTab(activeTab === "instructions" ? null : "instructions")
+            }
+          >
+            View Instructions
+          </button>
+        </div>
+
+        {activeTab === "ingredients" && (
+          <div className="mt-4 max-h-60 overflow-y-auto p-3 border-t border-gray-300">
+            <h3 className="text-lg font-semibold">Ingredients</h3>
+            <ul className="list-disc ml-5 text-gray-700">
+              {getIngredients().map((ingredient, index) => (
+                <li key={index}>{ingredient}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {activeTab === "instructions" && (
+          <div className="mt-4 max-h-60 overflow-y-auto p-3 border-t border-gray-300">
+            <h3 className="text-lg font-semibold">Instructions</h3>
+            <p className="text-gray-700">{strInstructions}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
