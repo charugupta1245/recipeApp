@@ -1,7 +1,7 @@
 const express = require("express");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
-const recipeRoutes = require("./routes/recipeRoutes");
+
 const blogRoutes = require("./routes/blogRoutes");
 require("dotenv").config();
 const cors = require("cors");
@@ -25,7 +25,7 @@ app.use(express.json()); // 🛑 Ensure JSON body parsing is enabled
 
 // ✅ Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/recipes", recipeRoutes);
+
 app.use("/api/blogs", blogRoutes);
 
 // ✅ Connect to DB
